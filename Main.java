@@ -1,9 +1,14 @@
 package salesforce_rest;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.List;
 
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.client.HttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.message.BasicHeader;
@@ -14,34 +19,40 @@ import org.apache.http.util.EntityUtils;
 import org.json.JSONObject;
 import org.apache.http.client.ClientProtocolException;
 import org.json.JSONTokener;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+
+import com.fasterxml.jackson.core.type.*;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import aj.org.objectweb.asm.TypeReference;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 
 public class Main {
 
-	static final String USERNAME = "math31rit-ewkz@force.com";
-	static final String PASSWORD = "Admin12345CKIsgSMjJ3KglEjce5BXJr34";
+	static final String USERNAME = "ritikamathur1997@outlook.com";
+	static final String PASSWORD = "Admin12345YObRiUTVtkF8uS1npdatDZxv3";
 	static final String LOGINURL = "https://login.salesforce.com";
 	static final String GRANTSERVICE = "/services/oauth2/token?grant_type=password";
-	static final String CLIENTID = "3MVG9fe4g9fhX0E4mYLq6KYA1Kai1.7Hlg_SaOM3NeLIvNTG3p24r9683SgUsKEzuu2hmH_DzwROz3e.GxO9s";
-	static final String CLIENTSECRET = "96568DF0C3E08164079194DD07892A1CBE1B151B944C3D7BE73EC5BB26BF9317";
+	static final String CLIENTID = "3MVG9fe4g9fhX0E41Kb0yYzJsImU5j2GMXIZ8PTsay8KVULSw9MB8nZYqilhxwpQboRDGwwmePa8GYKcl2hNg";
+	static final String CLIENTSECRET = "78F2DE48C8F1C73D1034AC9D004F456BFB8EC5C72226FAFFEE9E20CF1151135B";
 	private static final String REST_ENDPOINT = "/services/data";
-	private static final String API_VERSION = "/v56.0";
-
+	private static final String API_VERSION = "/v55.0";
 	private static String baseUri;
 	private static Header oauthHeader;
 	private static Header prettyPrintHeader = new BasicHeader("X-PrettyPrint", "1");
 	private static String LeadFirstName;
 	private static String LeadCompany;
+	private static String LeadId;
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException, Exception {
 		HttpClient httpclient = HttpClientBuilder.create().build();
 
 		String loginURL = LOGINURL + GRANTSERVICE + "&client_id=" + CLIENTID + "&client_secret=" + CLIENTSECRET
 				+ "&username=" + USERNAME + "&password=" + PASSWORD;
 
-		// String loginURL =
-		// "https://login.salesforce.com/services/oauth2/token?grant_type=password&client_id=3MVG9fe4g9fhX0E4mYLq6KYA1Kai1.7Hlg_SaOM3NeLIvNTG3p24r9683SgUsKEzuu2hmH_DzwROz3e.GxO9s&client_secret=96568DF0C3E08164079194DD07892A1CBE1B151B944C3D7BE73EC5BB26BF9317&username=math31rit-ewkz@force.com&password=Admin12345CKIsgSMjJ3KglEjce5BXJr34";
 		System.out.println(loginURL);
 		HttpPost httpPost = new HttpPost(loginURL);
 		HttpResponse response = null;
@@ -84,7 +95,7 @@ public class Main {
 		baseUri = loginInstanceUrl + REST_ENDPOINT + API_VERSION;
 		System.out.println("Base URI" + baseUri);
 
-		oauthHeader = new BasicHeader("Authorization", "OAuth2" + loginAccessToken);
+		oauthHeader = new BasicHeader("Authorization", "Bearer " + loginAccessToken);
 		System.out.println("oauthHeader1 : " + oauthHeader);
 		System.out.println("\n" + response.getStatusLine());
 		System.out.println(response.getStatusLine());
@@ -94,98 +105,136 @@ public class Main {
 
 		// release connection
 		httpPost.releaseConnection();
-		queryLeads();
-		//createLeads();
+		createLeads();
 	}
 
+	
 	public static void queryLeads() {
-	       System.out.println ( "\n_Lead QUERY_\n" ) ;
-	       try {
-	           // Set up the HTTP objects needed to make the request .
-	           HttpClient httpClient = HttpClientBuilder.create ().build() ;
-	           String uri = baseUri + "/query?q=Select+Company+,+FirstName+,+Company+From+Account+Limit+5" ;
-	           System.out.println ( " Query URL : " + uri ) ;
-	           HttpGet httpGet = new HttpGet ( uri ) ;
-	           System.out.println ("oautnHeader2 : " + oauthHeader ) ;
-	           httpGet.addHeader (oauthHeader) ;
-	           httpGet.addHeader (prettyPrintHeader) ;
-	           HttpResponse response = httpClient.execute (httpGet);
-	           
-	        // Process the result
-	           int statusCode = response.getStatusLine ( ) . getStatusCode ( ) ;
-	           if ( statusCode == 200 ) {
-	               String response_string = EntityUtils.toString ( response.getEntity ( ) ) ;
-	               try {
-	            	    JSONObject json = new JSONObject ( response_string ) ;
-	            	   System.out.println ( " JSON result of Query : \n " + json.toString ( 1 ) ) ;
-	            	    JSONArray j = json.getJSONArray ( " records " ) ;
-	            	    for ( int i = 0 ; i < j.length ( ) ; i ++ ) {
-	            	    	LeadCompany = json.getJSONArray ( "records" ).getJSONObject(i).getString ( "Company" ) ;
-	            	        LeadFirstName = json.getJSONArray ( "records" ) . getJSONObject ( i ) .getString ( "Name" ) ;
-	            	                  
-	            	    }
-	               }
-	               catch (JSONException je) {
+		System.out.println("\n_Lead QUERY_\n");
+		try {
+			// Set up the HTTP objects needed to make the request .
+			HttpClient httpClient = HttpClientBuilder.create().build();
+			String uri = baseUri + "/query?q=Select+Company+From+Lead+Limit+3";
+			System.out.println(" Query URL : " + uri);
+			HttpGet httpGet = new HttpGet(uri);
+			System.out.println("oautnHeader2 : " + oauthHeader);
+			httpGet.addHeader(oauthHeader);
+			httpGet.addHeader(prettyPrintHeader);
+			HttpResponse response = httpClient.execute(httpGet);
+
+			// Process the result
+			int statusCode = response.getStatusLine().getStatusCode();
+			if (statusCode == 200) {
+				String response_string = EntityUtils.toString(response.getEntity());
+				try {
+					JSONObject json = new JSONObject(response_string);
+					System.out.println(" JSON result of Query : \n " + json.toString(1));
+					JSONArray j = json.getJSONArray("records");
+					for (int i = 0; i < j.length(); i++) {
+						LeadCompany = json.getJSONArray("records").getJSONObject(i).getString("Company");
+					}
+				} catch (JSONException je) {
 					// TODO: handle exception
-	            	   je.printStackTrace();
-				}} else {
-				    System.out.println ( "Query was unsuccessful . Status code returned is "+ statusCode ) ;
-				    	    System.out.println ( " An error has occured . Http status : "+ response.getStatusLine ( ) . getStatusCode ( ) ) ;
-				    	    //System.out.println ( getBody( response.getEntity ( ) . getContent ( ) ) ) ;
-				    	    System.exit ( -1 ) ;
-	     	       }
-	       }catch ( IOException ioe ) {
-	        	    ioe.printStackTrace ( ) ;}
-	        	    catch( NullPointerException npe ) {
-	        	    npe.printStackTrace ( ) ;
-	        	} 
-	        	}
+					je.printStackTrace();
+				}
+			} else {
+				System.out.println("Query was unsuccessful . Status code returned is " + statusCode);
+				System.out.println(" An error has occured . Http status : " + response.getStatusLine().getStatusCode());
+				//System.out.println ( getBody( response.getEntity ( ) . getContent ( ) ) ) ;
+				System.exit(-1);
+			}
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+		} catch (NullPointerException npe) {
+			npe.printStackTrace();
+		}
+	}
 
 	public static void createLeads() throws Exception, IOException {
 		System.out.println("\n_ Lead INSERT__");
-
+		
 		String uri = baseUri + "/sobjects/Lead/";
+		try {
+			// create the JS0N object containing the new lead details .
+			
+			//Reading JSON from file systes
+			BufferedReader br = new BufferedReader(new FileReader("C:/Users/ritik/git/SPRINGREST/SalesforceRESTAPI/src/salesforce_rest/users.json"));
+			String line;
+			/*
+			 * JSONObject lead = new JSONObject(); lead.put("FirstName", "REST API");
+			 * lead.put("LastName", "Lead"); lead.put("Company", "bispsolutions.com");
+			 * System.out.println("JSON for lead record to be inserted : \n" +
+			 * lead.toString(1));
+			 */
+			StringBuilder sBuilderObj = new StringBuilder();
+			
+			while ((line = br.readLine()) != null) {
+				sBuilderObj.append(line);
+			}
+			
+			System.out.println("Json " +sBuilderObj.toString());
+			
+			JSONObject lead = new JSONObject();
+			JSONObject jsonObject = new JSONObject(sBuilderObj.toString());
+			
+			System.out.println("Json Obj " +jsonObject);
+			
+			JSONArray j = jsonObject.getJSONArray("leads");
+			
+			for (int i = 0; i < j.length(); i++) {
+				System.out.println("Array[i] " + j.getJSONObject(i).getString("Company"));
+				lead.put("Company", j.getJSONObject(i).getString("Company"));
+				lead.put("FirstName", j.getJSONObject(i).getString("FirstName"));
+				lead.put("LastName", j.getJSONObject(i).getString("LastName"));
+			}
+			
+			// Construct the objects needed for the request
+			HttpClient httpClient = HttpClientBuilder.create().build();
 
-		// create the 350N object containing the new lead details .
-		JSONObject lead = new JSONObject();
-		lead.put("FirstName", "REST API");
-		lead.put("LastName", "Lead");
-		lead.put("Company", "hispsolutions.com");
-		System.out.println("JSON for lead record to be inserted : \n" + lead.toString(1));
-		// Construct the objects needed for the request
-		HttpClient httpClient = HttpClientBuilder.create().build();
+			System.out.println("URL " + uri);
 
-		HttpPost httpPost = new HttpPost(uri);
-		httpPost.addHeader(oauthHeader);
-		httpPost.addHeader(prettyPrintHeader);
-		System.out.println(httpPost);
+			HttpPost httpPost = new HttpPost(uri);
+			System.out.println("oauthHeaderrr " + oauthHeader);
+			httpPost.addHeader(oauthHeader);
+			httpPost.addHeader(prettyPrintHeader);
 
-		// Make the request
-		HttpResponse response = httpClient.execute(httpPost);
+			StringEntity body = new StringEntity(lead.toString());
+			body.setContentType("application/json");
+			httpPost.setEntity(body);
 
-		// Process the results
-		int statusCode = response.getStatusLine().getStatusCode();
-		if (statusCode == 200) {
-			try {
+			System.out.println("HEADER " + httpPost.getAllHeaders().toString());
+
+			System.out.println("httpPost" + httpPost);
+
+			// Make the request
+			HttpResponse response = httpClient.execute(httpPost);
+
+			System.out.println("RESPONSE " + response);
+
+			// Process the results
+			int statusCode = response.getStatusLine().getStatusCode();
+			if (statusCode == 201) {
 				String response_string = EntityUtils.toString(response.getEntity());
 				JSONObject json = new JSONObject(response_string);
 
 				// Store the retrieved lead id to use when we update the lead .
-				LeadCompany = json.getString("Company");
-				System.out.println("New Lead id from response : " + LeadCompany);
+				//LeadCompany = json.getString("id");
+				System.out.println("New Leads inserted successfully");
 
-			} catch (JSONException e) {
-				System.out.println(" Issue creating JSON or processing results ");
-				e.printStackTrace();
-			} catch (IOException ioe) {
-				ioe.printStackTrace();
-			} catch (NullPointerException npe) {
-				npe.printStackTrace();
+			} else {
+				System.out.println(" Insertion unsuccessful . Status code returned is " + statusCode);
+				// The message we are going to post
 			}
-		} else {
-			System.out.println(" Insertion unsuccessful . Status code returned is " + statusCode);
-			// The message we are going to post
+			
+			br.close();
+		} catch (JSONException e) {
+			System.out.println(" Issue creating JSON or processing results ");
+			e.printStackTrace();
+		} catch (IOException ioe) {
+			ioe.printStackTrace();
+		} catch (NullPointerException npe) {
+			npe.printStackTrace();
 		}
-
 	}
+
 }
